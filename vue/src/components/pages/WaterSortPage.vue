@@ -13,15 +13,19 @@
     </div>
 
     <div class = "game__container">
-      <Bottle
-        v-for = "(bottle, index) in getBottle"
-        :key = "index"
-        :layers = "bottle"
-        :is-selected = "getSelected === index"
-        :is-blocked = "getBlockedBottle === index"
-        :max-layers = "4"
-        @select = "() => onBottleClick(index)"
-      />
+      <div class = "game__wrapper" ref = "wrapper">
+        <Bottle
+            v-for = "(bottle, index) in getBottle"
+            :key = "bottle.id"
+            :layers = "bottle.layers"
+            :is-selected = "getSelected === index"
+            :is-blocked = "getBlockedBottle === index"
+            @select = "() => onBottleClick(index)"
+            @move-start = "() => onMoveStart(index)"
+            @move-swap = "(node) => onMoveEnter(node)"
+            @move-end = "() => onMoveEnd()"
+        />
+      </div>
     </div>
 
     <div class = "game__controls">
@@ -30,24 +34,7 @@
       </Btn>
     </div>
 
-    <div class = "game__records-container">
-      <div v-if = "getRecords.easy.length > 0" class = "game__records">
-        <h2 class = "game__records-title">Топ 10 лучших результатов в лёгком режиме</h2>
-        <ol class = "game__records-list">
-          <li v-for = "(time, idx) in getRecords.easy" :key = "idx">
-            {{ formatRecord(time) }}
-          </li>
-        </ol>
-      </div>
-      <div v-if = "getRecords.hard.length > 0" class = "game__records">
-        <h2 class = "game__records-title">Топ 10 лучших результатов в сложном режиме</h2>
-        <ol class = "game__records-list">
-          <li v-for = "(time, idx) in getRecords.hard" :key = "idx">
-            {{ formatRecord(time) }}
-          </li>
-        </ol>
-      </div>
-    </div>
+    <GameRecords :records = "getRecords" />
   </div>
 </template>
 
@@ -55,16 +42,18 @@
 import { mapGetters, mapActions } from 'vuex'
 import Bottle from './../ui/Bottle.vue'
 import Btn from './../ui/Btn.vue'
-
+import GameRecords from './../ui/GameRecords.vue'
 export default {
   name: 'WaterSortPage',
   components: {
     Bottle,
-    Btn
+    Btn,
+    GameRecords
   },
   data() {
     return {
-      timerInterval: null
+      timerInterval: null,
+      movedBottleIndex: null
     }
   },
   computed: {
@@ -88,7 +77,8 @@ export default {
       'initGame',
       'handleBottleClick',
       'tickTimer',
-      'toggleHardMode'
+      'toggleHardMode',
+      'moveBottle'
     ]),
     startTimer() {
       this.stopTimer()
@@ -103,11 +93,6 @@ export default {
         clearInterval(this.timerInterval)
         this.timerInterval = null
       }
-    },
-    formatRecord(seconds) {
-      const m = Math.floor(seconds / 60).toString().padStart(2, '0');
-      const s = (seconds % 60).toString().padStart(2, '0');
-      return `${m}:${s}`;
     },
     onRestart() {
       this.initGame();
@@ -124,6 +109,26 @@ export default {
       } else if (!this.getIsTimerRunning && this.timerInterval) {
         this.stopTimer();
       }
+    },
+    onMoveStart(index) {
+      this.movedBottleIndex = index;
+    },
+    onMoveEnter(targetNode) {
+      if (this.movedBottleIndex !== null) {
+        const wrapper = this.$refs.wrapper;
+        if (!wrapper) return;
+        const targetIndex = Array.from(wrapper.children).indexOf(targetNode);
+        if (targetIndex !== -1 && this.movedBottleIndex !== targetIndex) {
+          this.moveBottle({
+            fromIndex: this.movedBottleIndex,
+            toIndex: targetIndex
+          });
+          this.movedBottleIndex = targetIndex;
+        }
+      }
+    },
+    onMoveEnd() {
+      this.movedBottleIndex = null;
     },
   }
 }
@@ -149,28 +154,12 @@ export default {
   }
   &__controls {
     margin-top: 30px;
+    margin-bottom: 40px;
   }
-  &__records {
-    background: #f5f5f5;
-    padding: 20px 40px;
-    border-radius: 12px;
-    text-align: center;
-  }
-  &__records-title {
-    margin-bottom: 15px;
-    font-size: 20px;
-    color: #444;
-  }
-  &__records-list {
-    list-style-type: decimal;
-    text-align: left;
-    padding-left: 20px;
-    margin: 0;
-    li {
-      font-size: 18px;
-      margin-bottom: 8px;
-      color: #555;
-    }
+  &__wrapper {
+    display: flex;
+    gap: 20px;
+    position: relative;
   }
 }
 </style>
